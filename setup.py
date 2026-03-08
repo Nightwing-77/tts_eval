@@ -39,6 +39,10 @@ setup(
         "jiwer",
         "pyannote.audio"
     ],
+    extras_require={
+        "soniox": ["soniox"],
+        "dev": ["pytest", "pytest-cov"],
+    },
     python_requires='>=3.8',
     entry_points={
         'console_scripts': [],
