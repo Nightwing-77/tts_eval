@@ -1,247 +1,265 @@
-# Quick Start Guide
+# TTS Evaluation Framework - Quick Start Guide
 
-## 30-Second Setup
+Evaluate and compare TTS output audio against input audio using Soniox ASR and speaker embeddings.
+
+## Installation
 
 ```bash
-# Install with Soniox support
+# Install the package with Soniox support
 pip install -e ".[soniox]"
+
+# Or just install core dependencies
+pip install -e .
 ```
 
-## Basic Usage
+## Get Your Soniox API Key
 
-### Option 1: Simple ASR Evaluation (Whisper)
+1. Visit [soniox.com](https://soniox.com)
+2. Sign up for a free account
+3. Get your API key from the dashboard
 
-```python
-from tts_eval import ASRMetric
-import numpy as np
+## Quick Start (30 seconds)
 
-# Initialize
-metric = ASRMetric(backend="whisper", metrics=["cer", "wer"])
+### Option 1: Using the CLI
 
-# Evaluate
-audio = [np.random.randn(16000)]  # Replace with real audio
-transcript = "Hello world"
-results = metric(audio, transcript=transcript, language="en")
+Compare two audio files with a single command:
 
-print(f"CER: {results['cer'][0]:.2f}%")
-print(f"WER: {results['wer'][0]:.2f}%")
+```bash
+tts-eval input_audio.wav output_audio.wav "reference text here" --language en --api-key YOUR_API_KEY
 ```
 
-### Option 2: Unified Pipeline (ASR + Speaker)
+### Option 2: Using Python
 
 ```python
-from tts_eval import TTSEvaluationPipeline, AudioSample
+from tts_eval import AudioPairComparator, AudioPair
 
-# Initialize pipeline
-pipeline = TTSEvaluationPipeline(
-    asr_backend="soniox",  # Use Soniox for 60+ languages
-    soniox_api_key="your-api-key",
-    asr_metrics=["cer", "wer"]
-)
+# Initialize comparator
+comparator = AudioPairComparator(soniox_api_key="your_api_key")
 
-# Create sample
-sample = AudioSample(
-    audio="tts_output.wav",
-    transcript="Sample text",
-    reference_speaker_audio="original_speaker.wav",
+# Create audio pair
+pair = AudioPair(
+    input_audio="input.wav",
+    output_audio="output.wav", 
+    reference_text="reference text here",
     language="en"
 )
 
-# Evaluate
-result = pipeline.evaluate_sample(sample)
+# Compare
+result = comparator.compare(pair)
 
-print(f"CER: {result.asr_scores['cer']:.2f}%")
-print(f"Speaker Similarity: {result.speaker_similarity_scores['cosine_similarity']:.3f}")
+# View results
+print(result)
 ```
 
-### Option 3: Batch Evaluation with Statistics
+## Results Explained
 
-```python
-from tts_eval import TTSEvaluationPipeline, AudioSample
+The output shows:
 
-pipeline = TTSEvaluationPipeline(asr_backend="whisper")
+- **Transcriptions**: What Soniox transcribed from each audio
+- **WER/CER**: Word Error Rate / Character Error Rate (lower is better)
+  - Compared against reference text
+  - Shows improvement between input and output
+- **Speaker Similarity**: Cosine similarity of speaker embeddings (1.0 = identical, 0.0 = different)
 
-# Create samples for multiple languages
-samples = [
-    AudioSample(audio="en_audio.wav", transcript="English text", language="en"),
-    AudioSample(audio="ja_audio.wav", transcript="日本語テキスト", language="ja"),
-    AudioSample(audio="es_audio.wav", transcript="Texto español", language="es"),
-]
+### Example Output
 
-# Batch evaluate with aggregates
-results = pipeline.evaluate_batch(samples, compute_aggregates=True)
-
-# Print per-language statistics
-for lang, stats in results['aggregates']['by_language'].items():
-    cer_mean = stats['asr']['cer']['mean']
-    print(f"{lang}: Average CER = {cer_mean:.2f}%")
 ```
+============================================================
+AUDIO PAIR COMPARISON RESULTS
+============================================================
 
-## Choose Your Backend
+Language: en
+Reference Text: the quick brown fox jumps
 
-### Whisper (Local, Offline)
-```python
-pipeline = TTSEvaluationPipeline(
-    asr_backend="whisper",
-    asr_model_id="kotoba-tech/kotoba-whisper-v2.0"
-)
-```
-- Pros: No API key, offline, privacy
-- Cons: Slower, requires GPU, large downloads
+--- TRANSCRIPTIONS ---
+Input Transcription:  the quick brown fox jumps
+Output Transcription: the quick brown fox jumps
 
-### Soniox (Cloud, 60+ Languages)
-```python
-pipeline = TTSEvaluationPipeline(
-    asr_backend="soniox",
-    soniox_api_key="your-api-key"
-)
-```
-- Pros: Fast, accurate, many languages
-- Cons: Requires API key, cloud-dependent
+--- METRICS (WER/CER) ---
+CER:
+  Input:  0.00%
+  Output: 0.00%
+  Change: = 0.00%
 
-## Supported Languages
+WER:
+  Input:  0.00%
+  Output: 0.00%
+  Change: = 0.00%
 
-English, Japanese, Spanish, French, German, Chinese, Korean, Portuguese, Italian, Russian, Arabic, Hindi + more.
+--- SPEAKER SIMILARITY ---
+Cosine Similarity: 0.9234
+(1.0 = identical speaker, 0.0 = completely different)
 
-```python
-from tts_eval import get_supported_languages
-
-print(get_supported_languages())
+============================================================
 ```
 
 ## Common Tasks
 
-### Task 1: Evaluate TTS Quality
-```python
-from tts_eval import TTSEvaluationPipeline, AudioSample
+### Compare Multiple Language Samples
 
-pipeline = TTSEvaluationPipeline(asr_backend="whisper")
-sample = AudioSample(
-    audio="generated.wav",
-    transcript="Original text",
-    language="en"
-)
-result = pipeline.evaluate_sample(sample)
-print(f"Quality (lower CER is better): {result.asr_scores['cer']:.2f}%")
+```python
+comparator = AudioPairComparator(soniox_api_key="key")
+
+languages = {
+    "en": ("input_en.wav", "output_en.wav", "english text"),
+    "ja": ("input_ja.wav", "output_ja.wav", "日本語テキスト"),
+    "es": ("input_es.wav", "output_es.wav", "texto español"),
+}
+
+for lang, (inp, out, ref) in languages.items():
+    pair = AudioPair(inp, out, ref, language=lang)
+    result = comparator.compare(pair)
+    print(f"\n{lang.upper()}: WER={result.metrics['wer']['output']:.2f}%")
 ```
 
-### Task 2: Check Speaker Preservation
-```python
-sample = AudioSample(
-    audio="generated.wav",
-    transcript="Same voice",
-    reference_speaker_audio="original.wav",
-    language="en"
-)
-result = pipeline.evaluate_sample(sample)
-similarity = result.speaker_similarity_scores['cosine_similarity']
-print(f"Speaker preserved: {similarity > 0.8}")
-```
+### Batch Process Multiple Pairs
 
-### Task 3: Multilingual Comparison
 ```python
-samples = [
-    AudioSample(audio=f"tts_{lang}.wav", transcript="Same text", language=lang)
-    for lang in ["en", "ja", "es", "fr"]
+pairs = [
+    AudioPair("in1.wav", "out1.wav", "ref1", "en"),
+    AudioPair("in2.wav", "out2.wav", "ref2", "en"),
+    AudioPair("in3.wav", "out3.wav", "ref3", "en"),
 ]
-results = pipeline.evaluate_batch(samples, compute_aggregates=True)
 
-for lang in ["en", "ja", "es", "fr"]:
-    cer = results['aggregates']['by_language'][lang]['asr']['cer']['mean']
-    print(f"{lang}: {cer:.2f}%")
+results = comparator.batch_compare(pairs)
+
+# Summary
+avg_cer = sum(r.metrics['cer']['output'] for r in results) / len(results)
+avg_similarity = sum(r.speaker_similarity for r in results) / len(results)
+
+print(f"Average CER: {avg_cer:.2f}%")
+print(f"Average Speaker Similarity: {avg_similarity:.4f}")
 ```
 
-## Installation Options
+### Export Results as JSON
 
-### Minimal (Whisper only)
-```bash
-pip install -e .
+```python
+import json
+
+result = comparator.compare(pair)
+json_data = json.dumps(result.to_dict(), indent=2)
+print(json_data)
+
+# Save to file
+with open("results.json", "w") as f:
+    json.dump(result.to_dict(), f, indent=2)
 ```
 
-### With Soniox
-```bash
-pip install -e ".[soniox]"
+### Using Numpy Arrays Instead of Files
+
+```python
+import numpy as np
+
+# Generate or load audio arrays
+input_audio = np.random.randn(16000)  # 1 second at 16kHz
+output_audio = np.random.randn(16000)
+
+pair = AudioPair(
+    input_audio=input_audio,
+    output_audio=output_audio,
+    reference_text="your text",
+    language="en",
+    sampling_rate=16000  # Important!
+)
+
+result = comparator.compare(pair)
 ```
 
-### Development (with testing)
+## Supported Languages
+
+Soniox supports 60+ languages. Common ones:
+
+- `en` - English
+- `ja` - Japanese
+- `zh` - Chinese
+- `es` - Spanish
+- `fr` - French
+- `de` - German
+- `ko` - Korean
+- `pt` - Portuguese
+- `ru` - Russian
+- `ar` - Arabic
+
+[See full list at soniox.com/languages](https://soniox.com)
+
+## API Reference
+
+### AudioPairComparator
+
+```python
+comparator = AudioPairComparator(
+    soniox_api_key: str,           # Required: Soniox API key
+    metrics: List[str] = ["cer", "wer"],  # Metrics to compute
+    speaker_embedding_model: str = "pyannote"  # Speaker model
+)
+```
+
+### AudioPair
+
+```python
+pair = AudioPair(
+    input_audio: Union[str, np.ndarray],   # Path or audio array
+    output_audio: Union[str, np.ndarray],  # Path or audio array
+    reference_text: str,                   # Text to compare against
+    language: str = "en",                  # Language code
+    sampling_rate: Optional[int] = None    # Sampling rate (needed for arrays)
+)
+```
+
+### PairComparisonResult
+
+```python
+result.input_transcription   # str - Soniox transcription of input
+result.output_transcription  # str - Soniox transcription of output
+result.metrics              # Dict - {"cer": {"input": 5.0, "output": 3.0}, ...}
+result.speaker_similarity   # float - 0.0 to 1.0
+result.language            # str - Language code
+result.reference_text      # str - Reference text used
+
+result.to_dict()           # Convert to dictionary
+print(result)             # Pretty-printed results
+```
+
+## Environment Variables
+
+Instead of passing `--api-key` every time, set an environment variable:
+
 ```bash
-pip install -e ".[dev]"
+export SONIOX_API_KEY="your_api_key_here"
+
+# Now you can omit --api-key
+tts-eval input.wav output.wav "text" --language en
 ```
 
 ## Troubleshooting
 
-**ImportError: No module named 'soniox'**
+### "Soniox API key not provided"
+- Set `SONIOX_API_KEY` environment variable, or
+- Pass `--api-key YOUR_KEY` to CLI, or
+- Pass `soniox_api_key="YOUR_KEY"` to Python
+
+### "File not found"
+- Check that audio file paths are correct
+- Use absolute paths or relative from current working directory
+
+### "Audio format not supported"
+- Ensure audio files are WAV format
+- For numpy arrays, ensure `sampling_rate` is specified
+
+### "Language not supported"
+- Check the [Soniox language list](https://soniox.com/languages)
+- Use correct ISO 639-1 language code
+
+## Examples
+
+See the `examples/` directory for more:
+
 ```bash
-pip install soniox
+python examples/audio_pair_comparison_example.py
 ```
 
-**ImportError: No module named 'transformers'**
-```bash
-pip install transformers torch
-```
+## More Information
 
-**CUDA out of memory**
-- Reduce batch size or use CPU
-- Use Soniox instead (cloud-based)
-
-**Soniox API errors**
-- Check API key is valid
-- Verify internet connection
-- Check Soniox service status
-
-## Next Steps
-
-1. Read `MULTILINGUAL_FRAMEWORK.md` for detailed guide
-2. Check `examples/multilingual_evaluation_example.py` for more examples
-3. Run tests: `pytest tests/ -v`
-4. Review `IMPLEMENTATION_SUMMARY.md` for architecture details
-
-## API Quick Reference
-
-```python
-# Initialize
-pipeline = TTSEvaluationPipeline(
-    asr_backend="whisper" or "soniox",
-    asr_metrics=["cer", "wer"],
-    speaker_embedding_model="pyannote"
-)
-
-# Single sample
-result = pipeline.evaluate_sample(sample, sample_id="123")
-# Returns: EvaluationResult
-
-# Batch samples
-results = pipeline.evaluate_batch(samples, compute_aggregates=True)
-# Returns: Dict with results and aggregates
-
-# Audio sample
-sample = AudioSample(
-    audio="path.wav" or np.ndarray,
-    transcript="text",
-    reference_speaker_audio="path.wav" or np.ndarray,  # Optional
-    language="en",
-    sampling_rate=16000  # Optional
-)
-
-# Get language info
-from tts_eval import get_language_config, get_supported_languages
-
-config = get_language_config("en")
-all_langs = get_supported_languages()
-```
-
-## Key Metrics
-
-- **CER**: Character Error Rate (lower is better) - 0-100%
-- **WER**: Word Error Rate (lower is better) - 0-100%
-- **Cosine Similarity**: Speaker match (higher is better) - 0-1
-
-**Interpretation:**
-- CER/WER < 10%: Excellent
-- CER/WER 10-20%: Good
-- CER/WER 20-40%: Fair
-- CER/WER > 40%: Poor
-
-- Similarity > 0.8: Excellent speaker match
-- Similarity 0.7-0.8: Good speaker match
-- Similarity < 0.7: Poor speaker match
+- [Full Documentation](MULTILINGUAL_FRAMEWORK.md)
+- [GitHub Repository](https://github.com/Nightwing-77/tts_eval)
+- [Soniox Docs](https://soniox.com/docs)

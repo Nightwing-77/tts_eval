@@ -27,24 +27,20 @@ setup(
     include_package_data=True,
     test_suite='tests',
     install_requires=[
-        "torch",
         "numpy",
-        "datasets",
-        "transformers",
-        "protobuf",
-        "accelerate",
         "evaluate",
-        "librosa",
         "soundfile",
         "jiwer",
         "pyannote.audio"
     ],
     extras_require={
-        "soniox": ["soniox"],
+        "soniox": ["soniox>=1.0.0"],
         "dev": ["pytest", "pytest-cov"],
     },
     python_requires='>=3.8',
     entry_points={
-        'console_scripts': [],
+        'console_scripts': [
+            'tts-eval=tts_eval.cli:main',
+        ],
     }
 )
