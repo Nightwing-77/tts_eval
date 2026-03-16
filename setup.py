@@ -28,16 +28,11 @@ setup(
     test_suite='tests',
     install_requires=[
         "torch",
-        "numpy",
-        "datasets",
-        "transformers",
-        "protobuf",
-        "accelerate",
-        "evaluate",
+        "numpy", 
         "librosa",
         "soundfile",
-        "jiwer",
-        "pyannote.audio"
+        "python-dotenv",
+        "transformers"
     ],
     python_requires='>=3.8',
     entry_points={
