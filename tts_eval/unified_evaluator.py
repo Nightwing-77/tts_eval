@@ -198,17 +198,32 @@ class UnifiedTTSEvaluator:
             logging.error(f"Soniox transcription failed: {e}")
             raise RuntimeError(f"Soniox transcription failed: {e}")
 
+    def _normalize_text(self, text: str) -> str:
+        """Normalize text by removing punctuation and converting to lowercase."""
+        import re
+        # Remove punctuation (.,?! etc.)
+        text = re.sub(r'[^\w\s]', '', text)
+        # Convert to lowercase
+        text = text.lower()
+        # Remove extra whitespace
+        text = ' '.join(text.split())
+        return text
+
     def _calculate_wer(self, reference: str, hypothesis: str) -> float:
-        """Calculate Word Error Rate (WER)."""
+        """Calculate Word Error Rate (WER) with text normalization."""
         if not reference and not hypothesis:
             return 0.0
         if not reference:
             return 100.0
         if not hypothesis:
             return 100.0
-            
-        ref_words = reference.split()
-        hyp_words = hypothesis.split()
+        
+        # Normalize both texts
+        ref_norm = self._normalize_text(reference)
+        hyp_norm = self._normalize_text(hypothesis)
+        
+        ref_words = ref_norm.split()
+        hyp_words = hyp_norm.split()
         
         # Dynamic programming for edit distance
         m, n = len(ref_words), len(hyp_words)
@@ -235,16 +250,20 @@ class UnifiedTTSEvaluator:
         return wer
 
     def _calculate_cer(self, reference: str, hypothesis: str) -> float:
-        """Calculate Character Error Rate (CER)."""
+        """Calculate Character Error Rate (CER) with text normalization."""
         if not reference and not hypothesis:
             return 0.0
         if not reference:
             return 100.0
         if not hypothesis:
             return 100.0
+        
+        # Normalize both texts
+        ref_norm = self._normalize_text(reference)
+        hyp_norm = self._normalize_text(hypothesis)
             
-        ref_chars = list(reference.replace(" ", ""))
-        hyp_chars = list(hypothesis.replace(" ", ""))
+        ref_chars = list(ref_norm.replace(" ", ""))
+        hyp_chars = list(hyp_norm.replace(" ", ""))
         
         # Dynamic programming for edit distance
         m, n = len(ref_chars), len(hyp_chars)
@@ -276,8 +295,13 @@ class UnifiedTTSEvaluator:
             return None
             
         try:
-            ref_embedding = self.speaker_embedder(reference_audio)
-            gen_embedding = self.speaker_embedder(generated_audio)
+            # Load audio files as numpy arrays
+            ref_audio_data, _ = librosa.load(reference_audio, sr=16000)  # Standard sample rate for embeddings
+            gen_audio_data, _ = librosa.load(generated_audio, sr=16000)
+            
+            # Get embeddings
+            ref_embedding = self.speaker_embedder(ref_audio_data)
+            gen_embedding = self.speaker_embedder(gen_audio_data)
             
             # Cosine similarity
             similarity = np.dot(ref_embedding, gen_embedding) / (
