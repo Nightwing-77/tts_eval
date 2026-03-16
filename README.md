@@ -39,12 +39,13 @@ def my_tts_function(text: str, language: str):
     # return audio_array
     pass
 
-# Evaluate with strict language hints
+# Evaluate with strict language hints and speaker similarity
 results = evaluate_tts(
     text="hello how are you",
     language="en",  # ISO 639-1 language codes: en, ja, zh, es, fr, de, it, pt, ru, ko, ar, hi
     tts_generate_func=my_tts_function,
-    metrics=["wer", "cer"]  # Calculate both WER and CER
+    reference_audio="reference_speech.wav",  # Add reference audio for speaker similarity
+    metrics=["wer", "cer", "similarity"]  # Include similarity metric
 )
 
 print(results)

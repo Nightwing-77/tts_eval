@@ -17,10 +17,11 @@ try:
     import soundfile as sf
     import librosa
     from soniox import SonioxClient
-    from soniox.types import CreateTranscriptionConfig
+    from soniox.types import CreateTranscriptionConfig, StructuredContext
     from soniox.utils import render_tokens
 except ImportError as e:
-    logging.warning(f"Some dependencies missing: {e}")
+    logging.error(f"Some dependencies missing: {e}")
+    raise
 
 
 class UnifiedTTSEvaluator:
@@ -155,16 +156,28 @@ class UnifiedTTSEvaluator:
                 language_hints_strict=True,    # Enable strict language restriction
                 enable_language_identification=False,  # Disable auto-detection
                 enable_speaker_diarization=False,     # Disable for simplicity
-                client_reference_id=f"tts_eval_{language}"
+                client_reference_id=f"tts_eval_{language}",
+                # Add context to help enforce language
+                context=StructuredContext(
+                    general=[
+                        {"key": "domain", "value": "speech_evaluation"},
+                        {"key": "language", "value": soniox_lang}
+                    ],
+                    text=f"This is a {soniox_lang} language speech sample for evaluation purposes.",
+                    terms=["hello", "how", "are", "you"] if soniox_lang == "en" else []
+                )
             )
             
-            logging.info(f"Using strict language hints: {config.language_hints}, strict: {config.language_hints_strict}")
+            logging.info(f"DEBUG: soniox_lang='{soniox_lang}', hints={config.language_hints}, strict={config.language_hints_strict}")
+            logging.info(f"DEBUG: Context added for language enforcement")
             
             # Create transcription
             transcription = client.stt.create(
                 config=config, 
                 file_id=file.id
             )
+            
+            logging.info(f"Transcription created successfully with ID: {transcription.id}")
             
             # Wait for completion
             client.stt.wait(transcription.id)
