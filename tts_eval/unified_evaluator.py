@@ -54,20 +54,20 @@ class UnifiedTTSEvaluator:
         self.soniox_api_url = soniox_api_url or os.getenv('SONIOX_API_URL', 'https://api.soniox.com')
         self.speaker_embedding_model = speaker_embedding_model
         
-        # Language mapping for Soniox with strict hints
+        # Language mapping for Soniox with strict hints (using ISO 639-1 codes)
         self.language_mapping = {
-            'en': 'english',
-            'ja': 'japanese', 
-            'zh': 'chinese',
-            'es': 'spanish',
-            'fr': 'french',
-            'de': 'german',
-            'it': 'italian',
-            'pt': 'portuguese',
-            'ru': 'russian',
-            'ko': 'korean',
-            'ar': 'arabic',
-            'hi': 'hindi'
+            'en': 'en',
+            'ja': 'ja', 
+            'zh': 'zh',
+            'es': 'es',
+            'fr': 'fr',
+            'de': 'de',
+            'it': 'it',
+            'pt': 'pt',
+            'ru': 'ru',
+            'ko': 'ko',
+            'ar': 'ar',
+            'hi': 'hi'
         }
         
         # Initialize speaker embedding model

@@ -41,20 +41,20 @@ class SonioxWERMetric:
         
         self.api_url = api_url or os.getenv('SONIOX_API_URL', 'https://api.soniox.com')
         
-        # Language mapping for Soniox
+        # Language mapping for Soniox (using ISO 639-1 codes)
         self.language_mapping = {
-            'en': 'english',
-            'ja': 'japanese', 
-            'zh': 'chinese',
-            'es': 'spanish',
-            'fr': 'french',
-            'de': 'german',
-            'it': 'italian',
-            'pt': 'portuguese',
-            'ru': 'russian',
-            'ko': 'korean',
-            'ar': 'arabic',
-            'hi': 'hindi'
+            'en': 'en',
+            'ja': 'ja', 
+            'zh': 'zh',
+            'es': 'es',
+            'fr': 'fr',
+            'de': 'de',
+            'it': 'it',
+            'pt': 'pt',
+            'ru': 'ru',
+            'ko': 'ko',
+            'ar': 'ar',
+            'hi': 'hi'
         }
 
     def _get_soniox_language(self, language: str) -> str:

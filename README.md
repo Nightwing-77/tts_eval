@@ -42,7 +42,7 @@ def my_tts_function(text: str, language: str):
 # Evaluate with strict language hints
 results = evaluate_tts(
     text="hello how are you",
-    language="en",  # Strict language hint: en, ja, zh, es, fr, de, it, pt, ru, ko, ar, hi
+    language="en",  # ISO 639-1 language codes: en, ja, zh, es, fr, de, it, pt, ru, ko, ar, hi
     tts_generate_func=my_tts_function,
     metrics=["wer", "cer"]  # Calculate both WER and CER
 )
@@ -147,7 +147,7 @@ print(output)
 - `xlsr_2b`, `xlsr_1b`, `xlsr_300m` - XLSR embeddings
 
 ## Supported Languages for Soniox
-Strict language hints are supported for:
+Strict language hints are supported using ISO 639-1 codes:
 - English (`en`)
 - Japanese (`ja`) 
 - Chinese (`zh`)
