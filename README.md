@@ -25,16 +25,25 @@ The unified evaluator provides a single interface for comprehensive TTS evaluati
 
 ```python
 from tts_eval import evaluate_tts
-from transformers import AutoModelForCausalLM
 
-# Load your TTS model
-tts_model = AutoModelForCausalLM.from_pretrained("your-tts-model")
+# Define your TTS generation function (e.g., for Svara-TTS)
+def my_tts_function(text: str, language: str):
+    """
+    Your TTS function that takes text and language and returns audio array.
+    This would contain your Svara-TTS model setup and audio generation logic.
+    """
+    # Your Svara-TTS code here:
+    # voice = f"{language} (Female)"  # or Male
+    # formatted_text = f"<|audio|> {voice}: {text}<|eot_id|>"
+    # ... rest of your Svara-TTS generation logic
+    # return audio_array
+    pass
 
 # Evaluate with strict language hints
 results = evaluate_tts(
     text="hello how are you",
     language="en",  # Strict language hint: en, ja, zh, es, fr, de, it, pt, ru, ko, ar, hi
-    tts_model=tts_model,
+    tts_generate_func=my_tts_function,
     metrics=["wer", "cer"]  # Calculate both WER and CER
 )
 
@@ -53,14 +62,22 @@ print(results)
 
 ```python
 from tts_eval import UnifiedTTSEvaluator
-from transformers import AutoModelForCausalLM
 
-# Load your TTS model
-tts_model = AutoModelForCausalLM.from_pretrained("your-tts-model")
+# Define your TTS generation function
+def svara_tts_function(text: str, language: str):
+    """
+    Svara-TTS generation function that returns audio array at 24kHz.
+    """
+    # Your Svara-TTS implementation here
+    # voice = f"{language} (Male)"
+    # formatted_text = f"<|audio|> {voice}: {text}<|eot_id|>"
+    # ... SNAC decoding logic
+    # return audio_array
+    pass
 
 # Create evaluator instance
 evaluator = UnifiedTTSEvaluator(
-    tts_model=tts_model,
+    tts_generate_func=svara_tts_function,
     speaker_embedding_model="metavoice"
 )
 
@@ -148,5 +165,25 @@ Strict language hints are supported for:
 - Soniox API key (get from https://console.soniox.com)
 - Soniox console CLI installed
 - Python 3.8+
-- transformers (for TTS model loading)
-- torch, numpy, librosa, soundfile
+- torch, numpy, librosa, soundfile, python-dotenv
+- Your TTS model/function (e.g., Svara-TTS with SNAC)
+
+## TTS Function Interface
+The evaluator expects a function with this signature:
+```python
+def your_tts_function(text: str, language: str) -> numpy.ndarray:
+    """
+    Generate audio from text and return as numpy array.
+    
+    Args:
+        text: Input text to synthesize
+        language: Language code (e.g., 'en', 'ja', 'zh')
+        
+    Returns:
+        Audio array (numpy.ndarray) at your model's sample rate
+    """
+    # Your TTS generation logic here
+    return audio_array
+```
+
+For Svara-TTS users, wrap your existing `generate_audio_from_text()` function to match this interface.

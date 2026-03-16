@@ -28,12 +28,12 @@ class UnifiedTTSEvaluator:
     Unified TTS evaluation class that combines WER/CER evaluation using Soniox
     with speaker embedding similarity in a single interface.
     
-    This class takes a loaded TTS model and provides comprehensive evaluation
+    This class takes a TTS generation function and provides comprehensive evaluation
     with strict language hints for Soniox transcription.
     """
 
     def __init__(self, 
-                 tts_model: Any = None,
+                 tts_generate_func: callable = None,
                  soniox_api_key: Optional[str] = None,
                  soniox_api_url: Optional[str] = None,
                  speaker_embedding_model: str = "metavoice"):
@@ -41,12 +41,12 @@ class UnifiedTTSEvaluator:
         Initialize the unified TTS evaluator.
         
         Args:
-            tts_model: Loaded TTS model (e.g., from transformers.AutoModelForCausalLM)
+            tts_generate_func: Function that takes (text: str, language: str) and returns audio array
             soniox_api_key: Soniox API key. If None, will try to get from SONIOX_API_KEY env var.
             soniox_api_url: Soniox API URL. If None, will use default.
             speaker_embedding_model: Model for speaker embedding similarity
         """
-        self.tts_model = tts_model
+        self.tts_generate_func = tts_generate_func
         self.soniox_api_key = soniox_api_key or os.getenv('SONIOX_API_KEY')
         if not self.soniox_api_key:
             raise ValueError("Soniox API key required. Set SONIOX_API_KEY environment variable or pass soniox_api_key parameter.")
@@ -91,7 +91,7 @@ class UnifiedTTSEvaluator:
 
     def _generate_speech(self, text: str, language: str) -> Optional[str]:
         """
-        Generate speech from text using the provided TTS model.
+        Generate speech from text using the provided TTS generation function.
         
         Args:
             text: Input text to synthesize
@@ -100,23 +100,26 @@ class UnifiedTTSEvaluator:
         Returns:
             Path to generated audio file or None if failed
         """
-        if not self.tts_model:
-            logging.error("No TTS model provided")
+        if not self.tts_generate_func:
+            logging.error("No TTS generation function provided")
             return None
             
         try:
-            # This is a placeholder - actual implementation depends on the TTS model
-            # You'll need to adapt this based on your specific TTS model
+            # Call the user's TTS generation function
+            audio_array = self.tts_generate_func(text, language)
+            
+            if audio_array is None:
+                logging.error("TTS generation function returned None")
+                return None
+                
+            # Save audio array to temporary file
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
                 temp_path = temp_file.name
                 
-            # Example implementation (adapt based on your model):
-            # inputs = self.tts_processor(text, return_tensors="pt")
-            # with torch.no_grad():
-            #     speech = self.tts_model.generate_speech(inputs["input_ids"])
-            # sf.write(temp_path, speech.numpy(), self.tts_model.sampling_rate)
+            # Save audio using soundfile (assuming 24kHz sample rate for SNAC)
+            sf.write(temp_path, audio_array, 24000)
+            logging.info(f"Audio saved to: {temp_path}")
             
-            logging.warning("TTS generation not implemented - please adapt for your specific model")
             return temp_path
             
         except Exception as e:
@@ -273,7 +276,7 @@ class UnifiedTTSEvaluator:
                  text: str,
                  language: str = "en",
                  reference_audio: Optional[str] = None,
-                 metrics: List[str] = ["wer", "cer"]) -> Dict[str, Union[float, str]]:
+                 metrics: List[str] = ["wer", "cer", "similarity"]) -> Dict[str, Union[float, str]]:
         """
         Main evaluation function that takes text input and returns comprehensive metrics.
         
@@ -288,9 +291,9 @@ class UnifiedTTSEvaluator:
         """
         results = {}
         
-        # Step 1: Generate speech from text (if TTS model provided)
+        # Step 1: Generate speech from text (if TTS function provided)
         generated_audio = None
-        if self.tts_model:
+        if self.tts_generate_func:
             generated_audio = self._generate_speech(text, language)
             if generated_audio:
                 results['generated_audio_path'] = generated_audio
@@ -343,17 +346,17 @@ class UnifiedTTSEvaluator:
 
 def evaluate_tts(text: str, 
                 language: str = "en",
-                tts_model: Any = None,
+                tts_generate_func: callable = None,
                 reference_audio: Optional[str] = None,
                 soniox_api_key: Optional[str] = None,
-                metrics: List[str] = ["wer", "cer","similarity"]) -> Dict[str, Union[float, str]]:
+                metrics: List[str] = ["wer", "cer", "similarity"]) -> Dict[str, Union[float, str]]:
     """
     Convenience function for TTS evaluation with strict Soniox language hints.
     
     Args:
         text: Input text to evaluate (e.g., "hello how are you")
         language: Language code with strict hinting (e.g., 'en', 'ja', 'zh')
-        tts_model: Loaded TTS model (e.g., from transformers.AutoModelForCausalLM)
+        tts_generate_func: Function that takes (text: str, language: str) and returns audio array
         reference_audio: Path to reference audio for speaker similarity (optional)
         soniox_api_key: Soniox API key (optional, can be set via environment)
         metrics: List of metrics to calculate ['wer', 'cer', 'similarity']
@@ -362,7 +365,7 @@ def evaluate_tts(text: str,
         Dictionary with comprehensive evaluation results
     """
     evaluator = UnifiedTTSEvaluator(
-        tts_model=tts_model,
+        tts_generate_func=tts_generate_func,
         soniox_api_key=soniox_api_key
     )
     return evaluator.evaluate(text, language, reference_audio, metrics)
