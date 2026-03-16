@@ -59,7 +59,9 @@ class SonioxWERMetric:
 
     def _get_soniox_language(self, language: str) -> str:
         """Convert language code to Soniox language name."""
-        return self.language_mapping.get(language.lower(), language.lower())
+        soniox_lang = self.language_mapping.get(language.lower(), language.lower())
+        logging.info(f"WER: Mapping language '{language}' to '{soniox_lang}'")
+        return soniox_lang
 
     def _transcribe_with_soniox(self, audio_path: str, language: str) -> str:
         """
@@ -84,11 +86,14 @@ class SonioxWERMetric:
             # Create transcription config with strict language hints
             config = CreateTranscriptionConfig(
                 model="stt-async-v4",
-                language_hints=[soniox_lang],  # Strict language hint
-                enable_language_identification=False,  # Disable to force language
+                # Temporarily disable language hints to test basic functionality
+                # language_hints=[soniox_lang],  # Strict language hint
+                enable_language_identification=True,  # Enable to auto-detect
                 enable_speaker_diarization=False,     # Disable for simplicity
                 client_reference_id=f"wer_eval_{language}"
             )
+            
+            logging.info(f"Using language: {soniox_lang}, identification enabled")
             
             # Create transcription
             transcription = client.stt.create(
