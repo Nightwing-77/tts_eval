@@ -1,0 +1,7 @@
+torch
+numpy
+librosa
+soundfile
+python-dotenv
+transformers
+soniox

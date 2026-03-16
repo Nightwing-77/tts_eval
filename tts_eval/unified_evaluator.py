@@ -151,14 +151,14 @@ class UnifiedTTSEvaluator:
             # Create transcription config with strict language hints
             config = CreateTranscriptionConfig(
                 model="stt-async-v4",
-                # Temporarily disable language hints to test basic functionality
-                # language_hints=[soniox_lang],  # Strict language hint
-                enable_language_identification=True,  # Enable to auto-detect
+                language_hints=[soniox_lang],  # Language hints
+                language_hints_strict=True,    # Enable strict language restriction
+                enable_language_identification=False,  # Disable auto-detection
                 enable_speaker_diarization=False,     # Disable for simplicity
                 client_reference_id=f"tts_eval_{language}"
             )
             
-            logging.info(f"Using language: {soniox_lang}, identification enabled")
+            logging.info(f"Using strict language hints: {config.language_hints}, strict: {config.language_hints_strict}")
             
             # Create transcription
             transcription = client.stt.create(
@@ -328,14 +328,24 @@ class UnifiedTTSEvaluator:
         
         # Step 4: Calculate speaker similarity (if reference audio provided)
         if reference_audio and 'similarity' in metrics and generated_audio:
+            logging.info(f"Calculating speaker similarity with reference: {reference_audio}")
             if Path(reference_audio).exists() and Path(generated_audio).exists():
                 similarity = self._calculate_speaker_similarity(reference_audio, generated_audio)
                 if similarity is not None:
                     results['speaker_similarity'] = similarity
+                    logging.info(f"Speaker similarity calculated: {similarity}")
                 else:
-                    results['speaker_similarity'] = "N/A"
+                    results['speaker_similarity'] = "N/A - Speaker embedding not available"
+                    logging.warning("Speaker embedding not available - similarity set to N/A")
             else:
                 results['speaker_similarity'] = "Audio files not found"
+                logging.warning(f"Audio files not found - reference: {reference_audio}, generated: {generated_audio}")
+        elif 'similarity' in metrics and not reference_audio:
+            results['speaker_similarity'] = "No reference audio provided"
+            logging.info("Similarity metric requested but no reference audio provided")
+        elif 'similarity' in metrics and not generated_audio:
+            results['speaker_similarity'] = "No generated audio available"
+            logging.info("Similarity metric requested but no generated audio available")
         
         # Add metadata
         results.update({

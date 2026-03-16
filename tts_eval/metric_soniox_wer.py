@@ -86,14 +86,14 @@ class SonioxWERMetric:
             # Create transcription config with strict language hints
             config = CreateTranscriptionConfig(
                 model="stt-async-v4",
-                # Temporarily disable language hints to test basic functionality
-                # language_hints=[soniox_lang],  # Strict language hint
-                enable_language_identification=True,  # Enable to auto-detect
+                language_hints=[soniox_lang],  # Language hints
+                language_hints_strict=True,    # Enable strict language restriction
+                enable_language_identification=False,  # Disable auto-detection
                 enable_speaker_diarization=False,     # Disable for simplicity
                 client_reference_id=f"wer_eval_{language}"
             )
             
-            logging.info(f"Using language: {soniox_lang}, identification enabled")
+            logging.info(f"WER: Using strict language hints: {config.language_hints}, strict: {config.language_hints_strict}")
             
             # Create transcription
             transcription = client.stt.create(
