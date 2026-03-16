@@ -2,8 +2,6 @@
 import os
 import logging
 import tempfile
-import json
-import subprocess
 from typing import List, Dict, Optional, Union, Any
 from pathlib import Path
 
@@ -16,9 +14,11 @@ except ImportError:
 try:
     import torch
     import numpy as np
-    from transformers import AutoModelForCausalLM, AutoProcessor
     import soundfile as sf
     import librosa
+    from soniox import SonioxClient
+    from soniox.types import CreateTranscriptionConfig
+    from soniox.utils import render_tokens
 except ImportError as e:
     logging.warning(f"Some dependencies missing: {e}")
 
@@ -128,7 +128,7 @@ class UnifiedTTSEvaluator:
 
     def _transcribe_with_soniox(self, audio_path: str, language: str) -> str:
         """
-        Transcribe audio file using Soniox console with strict language hint.
+        Transcribe audio file using Soniox Python SDK with strict language hint.
         
         Args:
             audio_path: Path to audio file
@@ -139,48 +139,46 @@ class UnifiedTTSEvaluator:
         """
         soniox_lang = self._get_soniox_language(language)
         
-        # Create temporary config file for Soniox
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as config_file:
-            config = {
-                "api_key": self.soniox_api_key,
-                "api_url": self.soniox_api_url
-            }
-            json.dump(config, config_file)
-            config_path = config_file.name
-        
         try:
-            # Run Soniox console command with strict language hint
-            cmd = [
-                'soniox', 'transcribe',
-                '--audio', audio_path,
-                '--language', soniox_lang,
-                '--config', config_path,
-                '--output-format', 'json',
-                '--hint', f'language:{soniox_lang}',  # Strict language hint
-                '--hint', f'model:soniox-{soniox_lang}'  # Model-specific hint
-            ]
+            # Initialize Soniox client
+            client = SonioxClient()
             
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            response = json.loads(result.stdout)
+            # Upload audio file
+            file = client.files.upload(audio_path)
             
-            # Extract transcribed text
-            if 'transcript' in response:
-                return response['transcript']
-            elif 'results' in response and response['results']:
-                return response['results'][0].get('transcript', '')
-            else:
-                logging.warning(f"Unexpected response format from Soniox: {response}")
-                return ""
+            # Create transcription config with strict language hints
+            config = CreateTranscriptionConfig(
+                model="stt-async-v4",
+                language_hints=[soniox_lang],  # Strict language hint
+                enable_language_identification=False,  # Disable to force language
+                enable_speaker_diarization=False,     # Disable for simplicity
+                client_reference_id=f"tts_eval_{language}"
+            )
+            
+            # Create transcription
+            transcription = client.stt.create(
+                config=config, 
+                file_id=file.id
+            )
+            
+            # Wait for completion
+            client.stt.wait(transcription.id)
+            
+            # Get transcript
+            result = client.stt.get_transcript(transcription.id)
+            
+            # Render tokens to get text
+            transcript_text = render_tokens(result.tokens, [])
+            
+            # Clean up
+            client.stt.delete(transcription.id)
+            client.files.delete(file.id)
+            
+            return transcript_text.strip()
                 
-        except subprocess.CalledProcessError as e:
-            logging.error(f"Soniox transcription failed: {e.stderr}")
-            raise RuntimeError(f"Soniox transcription failed: {e.stderr}")
-        except json.JSONDecodeError as e:
-            logging.error(f"Failed to parse Soniox response: {e}")
-            raise RuntimeError(f"Failed to parse Soniox response: {e}")
-        finally:
-            # Clean up config file
-            os.unlink(config_path)
+        except Exception as e:
+            logging.error(f"Soniox transcription failed: {e}")
+            raise RuntimeError(f"Soniox transcription failed: {e}")
 
     def _calculate_wer(self, reference: str, hypothesis: str) -> float:
         """Calculate Word Error Rate (WER)."""

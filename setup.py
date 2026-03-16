@@ -32,7 +32,8 @@ setup(
         "librosa",
         "soundfile",
         "python-dotenv",
-        "transformers"
+        "transformers",
+        "soniox"
     ],
     python_requires='>=3.8',
     entry_points={

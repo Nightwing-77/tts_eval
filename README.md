@@ -163,7 +163,7 @@ Strict language hints are supported for:
 
 ## Requirements
 - Soniox API key (get from https://console.soniox.com)
-- Soniox console CLI installed
+- Soniox Python SDK (`pip install soniox`)
 - Python 3.8+
 - torch, numpy, librosa, soundfile, python-dotenv
 - Your TTS model/function (e.g., Svara-TTS with SNAC)
